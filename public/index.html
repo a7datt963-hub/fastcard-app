@@ -1,23 +1,24 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FastCard App</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>تجربة جلب المنتجات</title>
 </head>
 <body>
-  <div class="container">
-    <h1>🌐 FastCard API</h1>
+  <h1>🚀 تجربة جلب المنتجات</h1>
+  <button id="fetchBtn">جلب المنتجات</button>
+  <pre id="result"></pre>
 
-    <div class="buttons">
-      <button onclick="checkHealth()">🔍 فحص الصحة</button>
-      <button onclick="getProducts()">📦 جلب المنتجات</button>
-    </div>
-
-    <pre id="output">⬅️ اضغط زر للتجربة</pre>
-  </div>
-
-  <script src="script.js"></script>
+  <script>
+    document.getElementById("fetchBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/products");
+        const data = await res.json();
+        document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("result").textContent = "❌ خطأ: " + err.message;
+      }
+    });
+  </script>
 </body>
 </html>
